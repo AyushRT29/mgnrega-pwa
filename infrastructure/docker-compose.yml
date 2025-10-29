@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: mgnrega_postgres
+    environment:
+      POSTGRES_DB: mgnrega
+      POSTGRES_USER: mgnrega_user
+      POSTGRES_PASSWORD: dev_password_change_in_prod
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./postgres/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mgnrega_user -d mgnrega"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: mgnrega_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ../packages/api
+      dockerfile: Dockerfile
+    container_name: mgnrega_api
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://mgnrega_user:dev_password_change_in_prod@postgres:5432/mgnrega
+      REDIS_URL: redis://redis:6379
+      DATAGOVIN_API_KEY: ${DATAGOVIN_API_KEY}
+      DATAGOVIN_BASE_URL: https://api.data.gov.in
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../packages/api/src:/app/src
+    command: npm run dev
+
+  worker:
+    build:
+      context: ../packages/worker
+      dockerfile: Dockerfile
+    container_name: mgnrega_worker
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://mgnrega_user:dev_password_change_in_prod@postgres:5432/mgnrega
+      REDIS_URL: redis://redis:6379
+      DATAGOVIN_API_KEY: ${DATAGOVIN_API_KEY}
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../packages/worker/src:/app/src
+
+  web:
+    build:
+      context: ../packages/web
+      dockerfile: Dockerfile
+      target: development
+    container_name: mgnrega_web
+    environment:
+      VITE_API_BASE_URL: http://localhost:3000/api/v1
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../packages/web/src:/app/src
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  redis_data:
