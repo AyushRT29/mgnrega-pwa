@@ -4,17 +4,14 @@
   "description": "MGNREGA District Performance PWA for Uttar Pradesh",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages"
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev -w api\" \"npm run dev -w worker\" \"npm run dev -w web\"",
     "build": "npm run build --workspaces",
     "test": "npm test --workspaces",
     "lint": "eslint . --ext .ts,.tsx",
-    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
-    "typecheck": "tsc --noEmit",
-    "docker:dev": "docker-compose -f infrastructure/docker-compose.yml up",
-    "docker:prod": "docker-compose -f infrastructure/docker-compose.prod.yml up -d"
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.0.0",
