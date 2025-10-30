@@ -1,0 +1,17 @@
+New-Item -Path "packages\api\.dockerignore" -ItemType File -Force
+```
+
+Open `packages/api/.dockerignore` and add:
+```
+node_modules
+dist
+npm-debug.log
+.env
+.env.*
+*.log
+.git
+.gitignore
+README.md
+.vscode
+.idea
+coverage
